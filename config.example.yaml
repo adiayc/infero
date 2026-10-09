@@ -1,0 +1,159 @@
+# infero configuration.
+# Copy to config.yaml and edit. Secrets never go here — see .env.example.
+#
+# Prices below come from infero's built-in table unless a backend sets
+# `pricing` explicitly. Published rates change; `infero keys` shows where each
+# backend's price came from and how old the table is.
+
+tiers: [small, medium, large]
+
+# Local model engine: where GGUFs live and how llama-server processes are run.
+engine:
+  models_dir: models
+  # Path to llama-server. null = auto-discover: INFERO_LLAMA_SERVER, then
+  # vendor/bin/, then PATH.
+  server_path: null
+  host: 127.0.0.1
+  # First port tried for a managed server (the gateway itself is on 8000, and a
+  # hand-run llama-server conventionally takes 8080).
+  base_port: 8081
+  # How many models may be resident at once. Two multi-GB models will not fit in
+  # 8 GB of RAM — raise this deliberately.
+  max_resident: 1
+  # Cold-loading a large model off disk can take minutes.
+  ready_timeout_s: 600
+  log_dir: null # set a directory to keep per-model llama-server logs
+  extra_args: [] # passed through to llama-server verbatim
+
+  # GPU sizing. llama.cpp does the actual fitting (--fit); these are its knobs.
+  fit:
+    enabled: true
+    target_mib: 1024 # VRAM left free per device
+    min_ctx: 4096 # floor on an automatically chosen context size
+    n_gpu_layers: null # pin a layer count; null = let llama.cpp decide
+    ctx_size: null # pin a context size; null = fit it
+
+backends:
+  # Managed local model — infero starts and supervises llama-server itself.
+  # 'model' is a catalog reference: an id, a filename, a path, or a unique
+  # substring ("qwen" works if only one Qwen is installed).
+  - name: local
+    type: llamacpp
+    tier: small
+    managed: true
+    model: Qwen2.5-7B-Instruct-Q4_K_M
+    pricing: # local compute treated as ~free
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+
+  # External llama-server — someone else started it, infero just calls it.
+  # Use this to point at a remote or hand-tuned server.
+  #
+  # - name: local-external
+  #   type: llamacpp
+  #   tier: small
+  #   endpoint: http://127.0.0.1:8080
+  #   model: local
+
+  # --- hosted providers ----------------------------------------------------
+  #
+  # Two backend types cover every provider: `anthropic` (its own wire format)
+  # and `openai_compat` (everything else). Naming a `provider` fills in the
+  # base URL, the API-key variable, and the price table; `base_url`,
+  # `api_key_env` and `pricing` each override it.
+  #
+  # These are enabled, but a backend whose key is unset is simply not built —
+  # it never becomes a routing candidate and nothing fails. So setting one key
+  # in .env is the only step needed. `infero keys` shows which are live.
+
+  # small — cheap and fast; the tier the local model competes in.
+  - name: haiku
+    type: anthropic
+    tier: small
+    model: claude-haiku-4-5
+
+  - name: gpt-mini
+    type: openai_compat
+    provider: openai
+    tier: small
+    model: gpt-4.1-mini
+
+  - name: flash
+    type: openai_compat
+    provider: gemini
+    tier: small
+    model: gemini-2.5-flash
+
+  # medium — the workhorse tier.
+  - name: sonnet
+    type: anthropic
+    tier: medium
+    model: claude-sonnet-4-5
+
+  - name: kimi
+    type: openai_compat
+    provider: kimi
+    tier: medium
+    model: kimi-k2-0905-preview
+
+  - name: gemini-pro
+    type: openai_compat
+    provider: gemini
+    tier: medium
+    model: gemini-2.5-pro
+
+  # large — reach for these only when the tier is asked for explicitly.
+  - name: opus
+    type: anthropic
+    tier: large
+    model: claude-opus-4-1
+
+  - name: gpt
+    type: openai_compat
+    provider: openai
+    tier: large
+    model: gpt-4.1
+
+  # Any other OpenAI-compatible endpoint works without a preset — give it a
+  # base_url and the variable holding its key:
+  #
+  # - name: local-vllm
+  #   type: openai_compat
+  #   tier: medium
+  #   base_url: http://10.0.0.5:8000/v1
+  #   api_key_env: VLLM_API_KEY
+  #   pricing: { input_per_1k: 0.0, output_per_1k: 0.0 }
+
+  # Deterministic stand-in for a hosted provider: configured price and latency,
+  # no network and no spend. Disabled here; it exists for the test suite and
+  # for trying the eval harness without spending anything.
+  - name: mock-hosted
+    type: mock
+    tier: small
+    enabled: false
+    pricing:
+      input_per_1k: 0.25
+      output_per_1k: 1.25
+    mock:
+      base_latency_ms: 400
+      per_token_ms: 8
+      jitter_ms: 0
+      quality: 0.9
+      canned_response: null
+
+# How a request is routed within its tier.
+routing:
+  max_inflight: 2      # a backend at this many in-flight requests is skipped
+  cooldown_s: 60       # how long a backend stays skipped after it errors
+  default_tier: small  # tier used when a request names none
+  ewma_alpha: 0.3      # smoothing for the per-backend latency average in `stats`
+
+# Per-request history: spend, latency. Persistent by default so
+# "what have I spent" survives a restart.
+telemetry:
+  backend: sqlite # or 'memory' to keep nothing on disk
+  path: null # null = <state dir>/telemetry.db (see INFERO_STATE_DIR)
+  retention_days: 90 # 0 keeps everything; pruned at startup
+  # Keep prompt text so `infero eval --from-telemetry` can replay real prompts.
+  # Turn off and only counts, costs and latencies are stored.
+  store_prompts: true

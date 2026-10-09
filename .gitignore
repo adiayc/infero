@@ -1,0 +1,21 @@
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.codegraph
+.venv
+.env
+config.yaml
+
+models/
+*.gguf
+
+.pytest_cache/
+.ruff_cache/
+
+# Local llama.cpp binaries
+vendor/
+
+SPEC.md

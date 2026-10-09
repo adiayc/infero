@@ -1,0 +1,58 @@
+[project]
+name = "infero"
+version = "0.1.0"
+description = "Local-model gateway with cost-ordered routing, spend telemetry, and an eval harness"
+readme = "README.md"
+authors = [
+    { name = "adiayc", email = "taro.sakamoto163@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "httpx>=0.27",
+    "prompt-toolkit>=3.0",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "pyyaml>=6.0",
+    "rich>=13.7",
+    "typer>=0.12",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.scripts]
+infero = "infero.cli.main:main"
+# Retained so existing invocations keep working; `infero eval` is the same thing.
+infero-eval = "infero.eval.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.11.27,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency-injection and Typer parameter defaults are idiomatic in
+# both frameworks, not mutable-default bugs.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Header",
+    "fastapi.Query",
+    "typer.Argument",
+    "typer.Option",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.6",
+]

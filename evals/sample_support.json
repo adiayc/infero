@@ -1,0 +1,41 @@
+{
+  "name": "sample_support",
+  "cases": [
+    {
+      "id": "refund-window",
+      "category": "policy",
+      "messages": [
+        {"role": "system", "content": "You are a support assistant for Acme Store. Answer only from policy."},
+        {"role": "user", "content": "How many days do I have to request a refund?"}
+      ],
+      "reference": "You can request a refund within 30 days of purchase."
+    },
+    {
+      "id": "reset-password",
+      "category": "howto",
+      "messages": [
+        {"role": "system", "content": "You are a support assistant for Acme Store."},
+        {"role": "user", "content": "How do I reset my password?"}
+      ],
+      "reference": "Go to Settings, click 'Reset password', and follow the emailed link."
+    },
+    {
+      "id": "shipping-time",
+      "category": "policy",
+      "messages": [
+        {"role": "system", "content": "You are a support assistant for Acme Store."},
+        {"role": "user", "content": "How long does standard shipping take?"}
+      ],
+      "reference": "Standard shipping takes 5 to 7 business days."
+    },
+    {
+      "id": "cancel-subscription",
+      "category": "howto",
+      "messages": [
+        {"role": "system", "content": "You are a support assistant for Acme Store."},
+        {"role": "user", "content": "Can I cancel my subscription anytime?"}
+      ],
+      "reference": "Yes, you can cancel your subscription anytime from the Billing page."
+    }
+  ]
+}
